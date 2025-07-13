@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: founders-qdrant
+    env: docker
+    dockerfilePath: ./docker/Dockerfile.qdrant
+    plan: starter
+    region: oregon
+    disk:
+      name: qdrant-data
+      mountPath: /qdrant/storage
+      sizeGB: 10
+    envVars:
+      - key: QDRANT__SERVICE__HTTP_PORT
+        value: 6333
+      - key: QDRANT__SERVICE__ENABLE_CORS
+        value: true

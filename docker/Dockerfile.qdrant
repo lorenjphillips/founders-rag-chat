@@ -1,0 +1,16 @@
+FROM qdrant/qdrant:v1.7.4
+
+# Expose Qdrant's default port
+EXPOSE 6333
+
+# Create storage directory
+RUN mkdir -p /qdrant/storage
+
+# Set the storage path
+ENV QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
+
+# Volume for persistent storage
+VOLUME ["/qdrant/storage"]
+
+# Default command
+CMD ["./qdrant"]

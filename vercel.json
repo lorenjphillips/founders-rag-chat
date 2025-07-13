@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "src/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "VITE_QDRANT_URL": "https://founders-qdrant.onrender.com",
+    "VITE_OPENAI_API_KEY": "@openai_api_key"
+  }
+}
