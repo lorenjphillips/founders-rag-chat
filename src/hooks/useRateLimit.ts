@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
+import { googleAuthService } from '@/lib/googleAuth';
 
 interface RateLimitState {
   queriesRemaining: number;
   timeUntilReset: number; // in minutes
   isLimited: boolean;
+  userTier: 'anonymous' | 'authenticated';
 }
 
-const QUERIES_PER_HOUR = 20;
+const ANONYMOUS_QUERIES_PER_HOUR = 3;
+const AUTHENTICATED_QUERIES_PER_HOUR = 10;
 const COOLDOWN_HOURS = 1;
-const STORAGE_KEY = 'founders_rag_rate_limit';
+const STORAGE_KEY_ANONYMOUS = 'founders_rag_rate_limit';
+const STORAGE_KEY_AUTH = 'founders_rag_rate_limit_auth';
 
 export function useRateLimit() {
   const [rateLimitState, setRateLimitState] = useState<RateLimitState>({
-    queriesRemaining: QUERIES_PER_HOUR,
+    queriesRemaining: ANONYMOUS_QUERIES_PER_HOUR,
     timeUntilReset: 0,
-    isLimited: false
+    isLimited: false,
+    userTier: 'anonymous'
   });
 
   useEffect(() => {
@@ -28,15 +33,21 @@ export function useRateLimit() {
   }, []);
 
   const checkRateLimit = () => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const isAuthenticated = googleAuthService.isSignedIn();
+    const userTier = isAuthenticated ? 'authenticated' : 'anonymous';
+    const storageKey = isAuthenticated ? STORAGE_KEY_AUTH : STORAGE_KEY_ANONYMOUS;
+    const queriesPerHour = isAuthenticated ? AUTHENTICATED_QUERIES_PER_HOUR : ANONYMOUS_QUERIES_PER_HOUR;
+    
+    const stored = localStorage.getItem(storageKey);
     const now = Date.now();
     
     if (!stored) {
       // First time user
       const initialState = {
-        queriesRemaining: QUERIES_PER_HOUR,
+        queriesRemaining: queriesPerHour,
         timeUntilReset: 0,
-        isLimited: false
+        isLimited: false,
+        userTier
       };
       setRateLimitState(initialState);
       return;
@@ -48,43 +59,51 @@ export function useRateLimit() {
     if (hoursSinceReset >= COOLDOWN_HOURS) {
       // Reset the limit
       const resetState = {
-        queriesRemaining: QUERIES_PER_HOUR,
+        queriesRemaining: queriesPerHour,
         timeUntilReset: 0,
-        isLimited: false
+        isLimited: false,
+        userTier
       };
       setRateLimitState(resetState);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         queries: 0,
         lastReset: now
       }));
     } else {
       // Still within cooldown period
       const queriesUsed = queries || 0;
-      const remaining = Math.max(0, QUERIES_PER_HOUR - queriesUsed);
+      const remaining = Math.max(0, queriesPerHour - queriesUsed);
       const minutesUntilReset = Math.ceil((COOLDOWN_HOURS * 60) - (hoursSinceReset * 60));
       
       setRateLimitState({
         queriesRemaining: remaining,
         timeUntilReset: minutesUntilReset,
-        isLimited: remaining === 0
+        isLimited: remaining === 0,
+        userTier
       });
     }
   };
 
   const consumeQuery = (): boolean => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const isAuthenticated = googleAuthService.isSignedIn();
+    const userTier = isAuthenticated ? 'authenticated' : 'anonymous';
+    const storageKey = isAuthenticated ? STORAGE_KEY_AUTH : STORAGE_KEY_ANONYMOUS;
+    const queriesPerHour = isAuthenticated ? AUTHENTICATED_QUERIES_PER_HOUR : ANONYMOUS_QUERIES_PER_HOUR;
+    
+    const stored = localStorage.getItem(storageKey);
     const now = Date.now();
     
     if (!stored) {
       // First query
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         queries: 1,
         lastReset: now
       }));
       setRateLimitState({
-        queriesRemaining: QUERIES_PER_HOUR - 1,
+        queriesRemaining: queriesPerHour - 1,
         timeUntilReset: 0,
-        isLimited: false
+        isLimited: false,
+        userTier
       });
       return true;
     }
@@ -94,14 +113,15 @@ export function useRateLimit() {
     
     if (hoursSinceReset >= COOLDOWN_HOURS) {
       // Reset period - allow query
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         queries: 1,
         lastReset: now
       }));
       setRateLimitState({
-        queriesRemaining: QUERIES_PER_HOUR - 1,
+        queriesRemaining: queriesPerHour - 1,
         timeUntilReset: 0,
-        isLimited: false
+        isLimited: false,
+        userTier
       });
       return true;
     }
@@ -109,29 +129,31 @@ export function useRateLimit() {
     // Within rate limit period
     const queriesUsed = queries || 0;
     
-    if (queriesUsed >= QUERIES_PER_HOUR) {
+    if (queriesUsed >= queriesPerHour) {
       // Rate limited
       const minutesUntilReset = Math.ceil((COOLDOWN_HOURS * 60) - (hoursSinceReset * 60));
       setRateLimitState({
         queriesRemaining: 0,
         timeUntilReset: minutesUntilReset,
-        isLimited: true
+        isLimited: true,
+        userTier
       });
       return false;
     }
     
     // Allow query and update count
     const newQueriesUsed = queriesUsed + 1;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    localStorage.setItem(storageKey, JSON.stringify({
       queries: newQueriesUsed,
       lastReset
     }));
     
-    const remaining = QUERIES_PER_HOUR - newQueriesUsed;
+    const remaining = queriesPerHour - newQueriesUsed;
     setRateLimitState({
       queriesRemaining: remaining,
       timeUntilReset: remaining === 0 ? Math.ceil((COOLDOWN_HOURS * 60) - (hoursSinceReset * 60)) : 0,
-      isLimited: remaining === 0
+      isLimited: remaining === 0,
+      userTier
     });
     
     return true;

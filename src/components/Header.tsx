@@ -1,9 +1,9 @@
 
 import { useState } from 'react';
-import { Moon, Sun, Settings, User } from 'lucide-react';
+import { Moon, Sun, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import AuthModal from './AuthModal';
+import { GoogleAuth } from './GoogleAuth';
 import SettingsModal from './SettingsModal';
 
 interface HeaderProps {
@@ -12,7 +12,6 @@ interface HeaderProps {
 }
 
 const Header = ({ isDark, onThemeToggle }: HeaderProps) => {
-  const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   return (
@@ -25,19 +24,12 @@ const Header = ({ isDark, onThemeToggle }: HeaderProps) => {
               <span className="text-primary-foreground font-serif font-bold text-sm">F</span>
             </div>
             <h1 className="font-serif font-semibold text-xl text-foreground">
-              Founders Agent
+              Founders Podcast Agent
             </h1>
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAuth(true)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <User className="h-4 w-4" />
-            </Button>
+            <GoogleAuth />
             
             <Button
               variant="ghost"
@@ -64,7 +56,6 @@ const Header = ({ isDark, onThemeToggle }: HeaderProps) => {
         </div>
       </header>
 
-      <AuthModal isOpen={showAuth} onOpenChange={setShowAuth} />
       <SettingsModal isOpen={showSettings} onOpenChange={setShowSettings} />
     </>
   );

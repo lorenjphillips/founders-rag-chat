@@ -40,5 +40,5 @@ __pycache__/
 # Qdrant local storage
 qdrant_storage/
 
-# Development memory
-DEVELOPMENT_MEMORY.md
+# Development documents
+docs-internal/

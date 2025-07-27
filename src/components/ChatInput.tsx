@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useRateLimit } from '@/hooks/useRateLimit';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -13,6 +14,7 @@ const ChatInput = ({ onSendMessage, disabled = false }: ChatInputProps) => {
   const [message, setMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const rateLimit = useRateLimit();
 
   const suggestions = [
     "What made Steve Jobs such an effective leader?",
@@ -108,7 +110,19 @@ const ChatInput = ({ onSendMessage, disabled = false }: ChatInputProps) => {
           </div>
           
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground font-mono">
-            <span>Press Enter to send, Shift+Enter for new line</span>
+            <div className="flex items-center gap-4">
+              <span>Press Enter to send, Shift+Enter for new line</span>
+              {rateLimit.isLimited && (
+                <span className="text-destructive">
+                  Rate limited. Reset in {rateLimit.timeUntilReset}m
+                </span>
+              )}
+              {!rateLimit.isLimited && (
+                <span className="text-primary">
+                  {rateLimit.queriesRemaining}/{rateLimit.userTier === 'authenticated' ? '10' : '3'} queries left
+                </span>
+              )}
+            </div>
             <span>{message.length}/2000</span>
           </div>
         </form>
