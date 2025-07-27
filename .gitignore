@@ -42,3 +42,4 @@ qdrant_storage/
 
 # Development documents
 docs-internal/
+.vercel

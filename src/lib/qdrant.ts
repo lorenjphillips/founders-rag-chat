@@ -31,31 +31,38 @@ class QdrantService {
     this.client = new QdrantClient({ url: qdrantUrl });
   }
 
-  async searchSimilar(
-    queryEmbedding: number[], 
-    limit: number = 5
-  ): Promise<SearchResult[]> {
+  async searchSimilar(queryText: string, limit: number = 5): Promise<SearchResult[]> {
     try {
-      const searchResult = await this.client.search(this.collectionName, {
-        vector: queryEmbedding,
-        limit,
-        with_payload: true,
-        score_threshold: 0.3 // Lower threshold for better recall
+      const embeddingResponse = await fetch('/api/embedding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: queryText }),
       });
 
-      return searchResult.map(result => ({
-        id: result.id as string,
+      if (!embeddingResponse.ok) {
+        throw new Error('Failed to generate embedding');
+      }
+
+      const { embedding } = await embeddingResponse.json();
+
+      const searchResponse = await this.client.search(this.collectionName, {
+        vector: embedding,
+        limit,
+        with_payload: true,
+      });
+
+      return searchResponse.map(result => ({
+        id: String(result.id),
         score: result.score || 0,
-        payload: result.payload as SearchResult['payload']
+        payload: result.payload as SearchResult['payload'],
       }));
+
     } catch (error) {
       console.error('Qdrant search error:', error);
-      throw new Error('Failed to search vector database');
+      return [];
     }
-  }
-
-  async getCollectionInfo() {
-    return await this.client.getCollection(this.collectionName);
   }
 }
 

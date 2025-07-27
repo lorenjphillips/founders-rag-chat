@@ -1,14 +1,9 @@
-import { generateEmbedding, generateRAGResponse } from './openai';
 import { qdrantService, type SearchResult, type RAGResponse } from './qdrant';
 
 export class RAGService {
   async search(query: string, limit: number = 5): Promise<RAGResponse> {
     try {
-      // Generate embedding for the query
-      const { embedding } = await generateEmbedding(query);
-
-      // Search for similar chunks in Qdrant
-      const searchResults = await qdrantService.searchSimilar(embedding, limit);
+      const searchResults = await qdrantService.searchSimilar(query, limit);
 
       if (searchResults.length === 0) {
         return {
@@ -18,37 +13,56 @@ export class RAGService {
         };
       }
 
-      // Combine the context from search results
       const context = searchResults
         .map(result => result.payload.chunk_text)
         .join('\n\n');
 
-      // Generate response using GPT
-      const answer = await generateRAGResponse(query, context);
+      const response = await fetch('/api/rag', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, context }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from API');
+      }
+
+      const data = await response.json();
 
       return {
-        answer,
+        answer: data.answer,
         sources: searchResults,
         query
       };
+
     } catch (error) {
-      console.error('RAG Service error:', error);
-      throw new Error('Failed to process search request');
+      console.error('RAG Service Error:', error);
+      return {
+        answer: "Sorry, I encountered an error while processing your request. Please try again.",
+        sources: [],
+        query
+      };
     }
   }
 
   async getSystemStats() {
     try {
-      const collectionInfo = await qdrantService.getCollectionInfo();
-      return {
-        totalVectors: collectionInfo.vectors_count,
-        collectionStatus: collectionInfo.status
-      };
+      const response = await fetch('/api/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch system stats');
+      }
+      return await response.json();
     } catch (error) {
       console.error('Failed to get system stats:', error);
-      return null;
+      return {
+        totalVectors: 0,
+        collectionStatus: 'unknown'
+      };
     }
   }
 }
 
+// Export the singleton instance
 export const ragService = new RAGService();
