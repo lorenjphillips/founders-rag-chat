@@ -47,13 +47,23 @@ class QdrantService {
 
       const { embedding } = await embeddingResponse.json();
 
-      const searchResponse = await this.client.search(this.collectionName, {
-        vector: embedding,
-        limit,
-        with_payload: true,
+      // Use backend API to search
+      const searchResponse = await fetch('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ embedding, limit }),
       });
 
-      return searchResponse.map(result => ({
+      if (!searchResponse.ok) {
+        const error = await searchResponse.json();
+        throw new Error(error.details || 'Failed to search vectors');
+      }
+
+      const { results } = await searchResponse.json();
+
+      return results.map(result => ({
         id: String(result.id),
         score: result.score || 0,
         payload: result.payload as SearchResult['payload'],
